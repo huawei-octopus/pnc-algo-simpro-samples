@@ -11,14 +11,15 @@
 #include <math.h>
 #include <mutex>
 
+#define USE_UDP_OR_TCP true
 char *msgBuffer;//一帧数据的buffer
 int msgBufferAllocSize = 1024 * 40;//对应的已申请空间
-int msgBufferUsedSize = 0;//对应的已使用空间
+long msgBufferUsedSize = 0;//对应的已使用空间
 
 int client_sockfd;
 struct sockaddr_in remote_addr; //服务器端网络地址结构体
 unsigned int sin_size = sizeof(struct sockaddr_in);
-#define RECV_BUF_SIZE 1024 * 40
+#define RECV_BUF_SIZE (1024 * 1024 * 2)
 char recvBuf[RECV_BUF_SIZE];  //接收数据的缓冲区
 
 bool bScenarioFinished = true; //当前测试场景是否结束场景
@@ -213,6 +214,7 @@ void recvData()
     int recvLen = 0;
     while (true)
     {
+#if USE_UDP_OR_TCP
         /*接收服务端的数据--recvfrom是无连接的,第5个参数可以获得数据发送者的地址*/
         if((recvLen = recvfrom(client_sockfd, recvBuf , RECV_BUF_SIZE , 0, (struct sockaddr *)&remote_addr, &sin_size)) < 0)//recvfrom()返回数据字节长度，若对方已经结束返回0,出错返回-1
         {
@@ -220,7 +222,12 @@ void recvData()
             return;
         }
         //printf("received packet from %s:\n", inet_ntoa(remote_addr.sin_addr));
-
+#else
+        if ((recvLen = recv(client_sockfd, recvBuf, RECV_BUF_SIZE, 0)) < 0) {
+            perror("recv error");
+            return;
+        }
+#endif
         //解析数据
         ASIM_MSG_HDR_t *msgHead = (ASIM_MSG_HDR_t *)recvBuf;//Msg的头部指针
         //std::cout << "headerSize=" << msgHead->headerSize << " dataSize=" << msgHead->dataSize << std::endl;
@@ -241,16 +248,16 @@ void recvData()
         ASIM_ROAD_POS_t mNearestRoadPos{0};
         ASIM_ROAD_POS_t mOwnRoadPos{0};
 
-        while (1)
+        while (true)
         {
-            ASIM_MSG_ENTRY_HDR_t *pkgHead = (ASIM_MSG_ENTRY_HDR_t *)currentPkg;//Pkg的头部指针
+            auto *pkgHead = (ASIM_MSG_ENTRY_HDR_t *)currentPkg;//Pkg的头部指针
             if (pkgHead->pkgId == ASIM_PKG_ID_OBJECT_STATE) //解析ASIM_PKG_ID_OBJECT_STATE
             {
                 //printf("receive ASIM_PKG_ID_OBJECT_STATE\n");
-                ASIM_OBJECT_STATE_t *pkgData = (ASIM_OBJECT_STATE_t *)(currentPkg + pkgHead->headerSize);//数据部分指针
+                auto *pkgData = (ASIM_OBJECT_STATE_t *)(currentPkg + pkgHead->headerSize);//数据部分指针
 
                 //1.解析数据
-                int elementNum = pkgHead->dataSize / pkgHead->elementSize; //元素数量
+                unsigned int elementNum = pkgHead->dataSize / pkgHead->elementSize; //元素数量
                 for (int i = 0; i < elementNum; i++) //解析每个元素
                 {
                     if ( pkgData->base.id == scOwnId )
@@ -271,10 +278,10 @@ void recvData()
             else if (pkgHead->pkgId == ASIM_PKG_ID_VEHICLE_SYSTEMS) //解析ASIM_PKG_ID_VEHICLE_SYSTEMS
             {
                 //printf("receive ASIM_PKG_ID_VEHICLE_SYSTEMS\n");
-                ASIM_VEHICLE_SYSTEMS_t *pkgData = (ASIM_VEHICLE_SYSTEMS_t *)(currentPkg + pkgHead->headerSize);//数据部分指针
+                auto *pkgData = (ASIM_VEHICLE_SYSTEMS_t *)(currentPkg + pkgHead->headerSize);//数据部分指针
 
                 //1.解析数据
-                int elementNum = pkgHead->dataSize / pkgHead->elementSize; //元素数量
+                unsigned int elementNum = pkgHead->dataSize / pkgHead->elementSize; //元素数量
                 for (int i = 0; i < elementNum; i++) //解析每个元素
                 {
                     pkgData += 1;
@@ -287,10 +294,10 @@ void recvData()
             else if (pkgHead->pkgId == ASIM_PKG_ID_ROAD_POS) //解析ASIM_PKG_ID_ROAD_POS
             {
                 //printf("receive ASIM_PKG_ID_ROAD_POS\n");
-                ASIM_ROAD_POS_t *pkgData = (ASIM_ROAD_POS_t *)(currentPkg + pkgHead->headerSize);//数据部分指针
+                auto *pkgData = (ASIM_ROAD_POS_t *)(currentPkg + pkgHead->headerSize);//数据部分指针
 
                 //1.解析数据
-                int elementNum = pkgHead->dataSize / pkgHead->elementSize; //元素数量
+                unsigned int elementNum = pkgHead->dataSize / pkgHead->elementSize; //元素数量
                 for (int i = 0; i < elementNum; i++) //解析每个元素
                 {
                     if ( pkgData->playerId == scOwnId )
@@ -312,7 +319,7 @@ void recvData()
             else if (pkgHead->pkgId == ASIM_PKG_ID_SYNC)
             {
                 //printf("receive ASIM_PKG_ID_SYNC\n");
-                ASIM_SYNC_t *pkgData = (ASIM_SYNC_t *)(currentPkg + pkgHead->headerSize);//数据部分指针
+                auto *pkgData = (ASIM_SYNC_t *)(currentPkg + pkgHead->headerSize);//数据部分指针
                 //1.解析数据
                 if (pkgData->cmdMask & 0x01) //最低位为1代表当前测试场景结束
                 {
@@ -326,7 +333,7 @@ void recvData()
             }
             else if (pkgHead->pkgId == ASIM_PKG_ID_END_OF_FRAME) //如果是最后一个Pkg
             {
-                //printf("receive ASIM_PKG_ID_END_OF_FRAME\n");
+                printf("receive ASIM_PKG_ID_END_OF_FRAME\n");
                 break;
             }
 
@@ -346,19 +353,31 @@ void recvData()
 }
 
 int main() {
-    int sendLen;
     memset(&remote_addr,0,sizeof(remote_addr)); //数据初始化--清零
     remote_addr.sin_family=AF_INET; //设置为IP通信
     remote_addr.sin_addr.s_addr=inet_addr("127.0.0.1");//服务器IP地址
     remote_addr.sin_port=htons(8000); //服务器端口号
-
+#if USE_UDP_OR_TCP
     /*创建客户端套接字--IPv4协议，面向无连接通信，UDP协议*/
     if((client_sockfd = socket(PF_INET,SOCK_DGRAM,0)) < 0)
     {
         perror("socket error");
         return 1;
     }
+#else
+    if ((client_sockfd = socket(PF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        perror("socket error");
+        return 1;
+    }
 
+    //connect to server
+    if (connect(client_sockfd, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr)) < 0) {
+        perror("socket error");
+        return 1;
+    }
+#endif
+        
     std::thread recv_thread(recvData);
 
     msgBuffer = (char *)malloc(msgBufferAllocSize);//一帧数据的buffer
@@ -378,12 +397,20 @@ int main() {
         //生成仿真应答数据
         generateMsg();
 
+#if USE_UDP_OR_TCP
         /*向服务器发送数据包*/
-        if((sendLen = sendto(client_sockfd, msgBuffer, msgBufferUsedSize, 0, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr))) < 0)//返回发送的数据长度，出错返回-1
+        if((sendto(client_sockfd, msgBuffer, msgBufferUsedSize, 0, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr))) < 0)//返回发送的数据长度，出错返回-1
         {
             perror("send error!");
             return 1;
         }
+#else
+        if ((send(client_sockfd, msgBuffer, msgBufferUsedSize, 0)) < 0)
+        {
+            perror("send error!");
+            return 1;
+        }
+#endif
 
         usleep(20*1000);
     }

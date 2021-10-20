@@ -101,7 +101,7 @@
 #define ASIM_PKG_ID_RAY                         44     /**< information about a (sensor) ray                                 @version 0x011C */
 #define ASIM_PKG_ID_RT_PERFORMANCE              45     /**< real-time performance monitorng                                  @version 0x011D */
 #define ASIM_PKG_ID_SYMBOL_STATE                46     /**< state of a specific symbol                                       @version 0x011F */
-
+#define ASIM_PKG_ID_REQUEST_AD_DATA             47     /**< request AD Data                                                  @version 0x0100 */
 
 /** @} */
 
@@ -1100,6 +1100,15 @@ typedef struct
     uint64_t            parent;                     /**< unique ID of parent object                                    @unit _                                  @version 0x0100 */
     uint16_t            cfgFlags;                   /**< configuration flags                                           @unit @link ASIM_OBJECT_CFG_FLAG @endlink @version 0x0100 */
     int16_t             cfgModelId;                 /**< visual model ID (configuration parameter)                     @unit _                                  @version 0x0100 */
+    int8_t              laneId;
+    uint8_t             dir;
+    uint16_t            spare0;
+    uint64_t            roadId;
+    float               roadS;
+    float               roadT;
+    float               hdgRel;
+    float               pitchRel;
+    float               rollRel;
 } ASIM_OBJECT_STATE_BASE_t;
 
 /** ------ extended object data (e.g. for dynamic objects) ------- */
