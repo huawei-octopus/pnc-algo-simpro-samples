@@ -103,6 +103,9 @@
 #define ASIM_PKG_ID_SYMBOL_STATE                46     /**< state of a specific symbol                                       @version 0x011F */
 #define ASIM_PKG_ID_REQUEST_AD_DATA             47     /**< request AD Data                                                  @version 0x0100 */
 
+#define MIL_PKG_ID_EGO_DATA                     48
+#define MIL_PKG_ID_OBJECT_DATA                  49
+#define MIL_PKG_ID_ROADMARK                     50
 /** @} */
 
 /** @addtogroup ASIM_PKG_ID_CUSTOM
@@ -182,6 +185,8 @@
 #define ASIM_OBJECT_TYPE_VEH_LIGHT_REAR_LEFT   36    /**< tail light left                                                @version 0x0119 */
 #define ASIM_OBJECT_TYPE_VEH_LIGHT_REAR_RIGHT  37    /**< tail light right                                               @version 0x0119 */
 #define ASIM_OBJECT_TYPE_VEH_CABIN             38    /**< articulated cabin (e.g. for trucks), must have parent          @version 0x0119 */
+#define ASIM_OBJECT_TYPE_ROAD_LANE             39    /**< road lane                                                      @version 0x0119 */
+#define ASIM_OBJECT_TYPE_ROAD_MARK             40    /**< road mark                                                      @version 0x0119 */
 /** @} */
 
 /** @addtogroup ASIM_LANE_BORDER
@@ -960,7 +965,7 @@
 /** @} --END GROUP BITMASK_DEFINITIONS-- */
 
 /** ------ generic point structure --- */
-typedef struct
+typedef struct ASIM_POINT
 {
     double x;         /**< x position                                                @unit m                                @version 0x0100 */
     double y;         /**< y position                                                @unit m                                @version 0x0100 */
@@ -971,7 +976,7 @@ typedef struct
 } ASIM_POINT_t;
 
 /** ------ generic co-ordinate structure --- */
-typedef struct
+typedef struct ASIM_COORD
 {
     double   x;       /**< x position                                                @unit m                                @version 0x0100 */
     double   y;       /**< y position                                                @unit m                                @version 0x0100 */
@@ -985,7 +990,7 @@ typedef struct
 } ASIM_COORD_t;
 
 /** ------ definition / position of a user co-ordinate system --- */
-typedef struct
+typedef struct ASIM_COORD_SYSTEM
 {
     uint16_t     id;                     /**< unique ID of the co-ordinate system                                    @unit _                    @version 0x0100 */
     uint16_t     spare;                  /**< spare for future use                                                   @unit _                    @version 0x0100 */
@@ -993,8 +998,24 @@ typedef struct
 } ASIM_COORD_SYSTEM_t;
 
 /** ------ road position and associated properties ------ */
-typedef struct
+typedef struct ASIM_ROAD_POS
 {
+#if 0 // Sue 2021.1.8 roadId字段从uint32_t改为uint64_t
+    uint32_t         playerId;           /**< id of the player to which road position belongs                        @unit _                                @version 0x0100 */
+    uint16_t         roadId;             /**< unique road ID                                                         @unit _                                @version 0x0100 */
+    int8_t           laneId;             /**< lane ID                                                                @unit _                                @version 0x0100 */
+    uint8_t          flags;              /**< road position flags, further info                                      @unit @link ASIM_ROAD_POS_FLAG @endlink @version 0x0100 */
+    float            roadS;              /**< s-coordinate along road's reference line                               @unit m                                @version 0x0100 */
+    float            roadT;              /**< t-coordinate perpendicular to road's reference line                    @unit m                                @version 0x0100 */
+    float            laneOffset;         /**< offset from lane center in road co-ordinates                           @unit m                                @version 0x0100 */
+    float            hdgRel;             /**< heading angle relative to lane tangent dir                             @unit rad                              @version 0x0100 */
+    float            pitchRel;           /**< pitch angle relative to road tangent plane                             @unit rad                              @version 0x0100 */
+    float            rollRel;            /**< roll angle relative to road tangent plane                              @unit rad                              @version 0x0100 */
+    uint8_t          roadType;           /**< type of the road, corresponding to OpenDRIVE                           @unit @link ASIM_ROAD_TYPE @endlink     @version 0x010A */
+    uint8_t          spare1;             /**< for future use                                                         @unit _                                @version 0x010A */
+    uint16_t         spare2;             /**< for future use                                                         @unit _                                @version 0x010A */
+    float            pathS;              /**< longitudinal path co-ordinate                                          @unit _                                @version 0x010E */
+#else
     uint32_t         playerId;           /**< id of the player to which road position belongs                        @unit _                                @version 0x0100 */
     uint16_t         spare0;             /**< for future use                                                         @unit _                                @version 0x010A */
     int8_t           laneId;             /**< lane ID                                                                @unit _                                @version 0x0100 */
@@ -1010,12 +1031,13 @@ typedef struct
     uint8_t          spare1;             /**< for future use                                                         @unit _                                @version 0x010A */
     uint16_t         spare2;             /**< for future use                                                         @unit _                                @version 0x010A */
     float            pathS;              /**< longitudinal path co-ordinate                                          @unit _                                @version 0x010E */
+#endif
 } ASIM_ROAD_POS_t;
 
 /** ------ road mark information ------
  * @note this package is immediately followed by "noDataPoints" entries of type ASIM_POINT_t
  */
-typedef struct
+typedef struct ASIM_ROADMARK
 {
     uint32_t    playerId;                /**< id of the player to which roadmark belongs                             @unit _                                    @version 0x0100 */
     int8_t      id;                      /**< id of this road mark                                                   @unit [0..127]                             @version 0x010D */
@@ -1035,13 +1057,35 @@ typedef struct
     uint8_t     type;                    /**< type of road mark                                                      @unit @link ASIM_ROADMARK_TYPE  @endlink    @version 0x0100 */
     uint8_t     color;                   /**< color of road mark                                                     @unit @link ASIM_ROADMARK_COLOR @endlink    @version 0x0100 */
     uint16_t    noDataPoints;            /**< number of tesselation points following this package                    @unit _                                    @version 0x0100 */
+#if 0 // Xu 2021.1.8 roadId过长导致crash
+    uint32_t    roadId;                  /**< id of the road to which the roadmark belongs                           @unit _                                    @version 0x011a */
+#else
     uint64_t    roadId;                  /**< id of the road to which the roadmark belongs                           @unit _                                    @version 0x011a */
+#endif
     uint32_t    spare1;                  /**< for future use                                                         @unit _                                    @version 0x0100 */
 } ASIM_ROADMARK_t;
 
 /** ------ lane information ------ */
-typedef struct
+typedef struct ASIM_LANE_INFO
 {
+#if 0 // Sue 2021.1.8 roadId字段从uint32_t改为uint64_t
+    uint16_t    roadId;                  /**< unique road ID                                                         @unit _                                @version 0x0100 */
+    int8_t      id;                      /**< lane ID according to OpenDRIVE                                         @unit [-127..127]                      @version 0x0100 */
+    uint8_t     neighborMask;            /**< existence mask for adjacent lanes                                      @unit @link ASIM_LANE_EXISTS @endlink   @version 0x0100 */
+    int8_t      leftLaneId;              /**< ID of lane left of current lane                                        @unit [-127..127]                      @version 0x0100 */
+    int8_t      rightLaneId;             /**< ID of lane right of current lane                                       @unit [-127..127]                      @version 0x0100 */
+    uint8_t     borderType;              /**< type of lane border                                                    @unit @link ASIM_LANE_BORDER @endlink   @version 0x0100 */
+    uint8_t     material;                /**< type of lane material                                                  @unit [0..255]                         @version 0x0100 */
+    uint16_t    status;                  /**< status mask of lane                                                    @unit @link ASIM_LANE_STATUS @endlink   @version 0x0100 */
+    uint16_t    type;                    /**< enumerated lane type according to OpenDRIVE (0=none, 1=driving...)     @unit _                                @version 0x010D */
+    float       width;                   /**< lane width                                                             @unit m                                @version 0x0100 */
+    double      curvVert;                /**< vertical curvature in lane center                                      @unit 1/m                              @version 0x0100 */
+    double      curvVertDot;             /**< change of vertical curvature in lane center                            @unit 1/m2                             @version 0x0100 */
+    double      curvHor;                 /**< horizontal curvature in lane center                                    @unit 1/m                              @version 0x0100 */
+    double      curvHorDot;              /**< change of horizontal curvature in lane center                          @unit 1/m2                             @version 0x0100 */
+    uint32_t    playerId;                /**< id of the player to which this info belongs                            @unit _                                @version 0x0100 */
+    uint32_t    spare1;                  /**< for future use                                                         @unit _                                @version 0x0100 */
+#else
     uint64_t    roadId;                  /**< unique road ID                                                         @unit _                                @version 0x0100 */
     uint16_t    spare0;                  /**< for future use                                                         @unit _                                @version 0x0100 */
     int8_t      id;                      /**< lane ID according to OpenDRIVE                                         @unit [-127..127]                      @version 0x0100 */
@@ -1059,10 +1103,11 @@ typedef struct
     double      curvHorDot;              /**< change of horizontal curvature in lane center                          @unit 1/m2                             @version 0x0100 */
     uint32_t    playerId;                /**< id of the player to which this info belongs                            @unit _                                @version 0x0100 */
     uint32_t    spare1;                  /**< for future use                                                         @unit _                                @version 0x0100 */
+#endif
 } ASIM_LANE_INFO_t;
 
 /** ------ configuration of an object (sent at start of sim and when triggered via SCP) ------ */
-typedef struct
+typedef struct ASIM_OBJECT_CFG
 {
     uint32_t id;                                    /**< unique object ID                                              @unit _                                  @version 0x0100 */
     uint8_t  category;                              /**< object category                                               @unit @link ASIM_OBJECT_CATEGORY @endlink @version 0x0100 */
@@ -1077,7 +1122,7 @@ typedef struct
 } ASIM_OBJECT_CFG_t;
 
 /** ------ geometry information for an object --- */
-typedef struct
+typedef struct ASIM_GEOMETRY
 {
     float dimX;        /**< x dimension in object co-ordinates (length)                                               @unit m                                  @version 0x0100 */
     float dimY;        /**< y dimension in object co-ordinates (width)                                                @unit m                                  @version 0x0100 */
@@ -1088,47 +1133,57 @@ typedef struct
 } ASIM_GEOMETRY_t;
 
 /** ------ state of an object (may be extended by the next structure) ------- */
-typedef struct
+typedef struct ASIM_OBJECT_STATE_BASE
 {
     uint32_t            id;                         /**< unique object ID                                              @unit _                                  @version 0x0100 */
     uint8_t             category;                   /**< object category                                               @unit @link ASIM_OBJECT_CATEGORY @endlink @version 0x0100 */
     uint8_t             type;                       /**< object type                                                   @unit @link ASIM_OBJECT_TYPE     @endlink @version 0x0100 */
     uint16_t            visMask;                    /**< visibility mask                                               @unit @link ASIM_OBJECT_VIS_FLAG @endlink @version 0x0100 */
     char                name[ASIM_SIZE_OBJECT_NAME]; /**< symbolic name                                                 @unit _                                  @version 0x0100 */
-    ASIM_GEOMETRY_t      geo;                        /**< info about object's geometry                                  @unit m,m,m,m,m,m                        @version 0x0100 */
-    ASIM_COORD_t         pos;                        /**< position and orientation of object's reference point          @unit m,m,m,rad,rad,rad                  @version 0x0100 */
+    ASIM_GEOMETRY_t     geo;                        /**< info about object's geometry                                  @unit m,m,m,m,m,m                        @version 0x0100 */
+    ASIM_COORD_t        pos;                        /**< position and orientation of object's reference point          @unit m,m,m,rad,rad,rad                  @version 0x0100 */
+#if 0 // Xu 2021.1.7 fix crash
+    uint32_t            parent;                     /**< unique ID of parent object                                    @unit _                                  @version 0x0100 */
+#else
     uint64_t            parent;                     /**< unique ID of parent object                                    @unit _                                  @version 0x0100 */
+#endif
     uint16_t            cfgFlags;                   /**< configuration flags                                           @unit @link ASIM_OBJECT_CFG_FLAG @endlink @version 0x0100 */
     int16_t             cfgModelId;                 /**< visual model ID (configuration parameter)                     @unit _                                  @version 0x0100 */
-    int8_t              laneId;
-    uint8_t             dir;
-    uint16_t            spare0;
-    uint64_t            roadId;
-    float               roadS;
-    float               roadT;
-    float               hdgRel;
-    float               pitchRel;
-    float               rollRel;
+#if 1 //Xu 2021.7.16 联仿接口修改
+    int8_t              laneId;                     /**< lane ID                                                       @unit _                                @version 0x0100 */
+    uint8_t             dir;                        /**< road position flags, further info                             @unit @link ASIM_ROAD_POS_FLAG @endlink @version 0x0100 */
+    uint16_t            spare0;                     /**< for future use                                                @unit _                                @version 0x010A */
+    uint64_t            roadId;                     /**< unique road ID                                                @unit _                                @version 0x0100 */
+    float               roadS;                      /**< s-coordinate along road's reference line                      @unit m                                @version 0x0100 */
+    float               roadT;                      /**< t-coordinate perpendicular to road's reference line           @unit m                                @version 0x0100 */
+    float               hdgRel;                     /**< heading angle relative to lane tangent dir                    @unit rad                              @version 0x0100 */
+    float               pitchRel;                   /**< pitch angle relative to road tangent plane                    @unit rad                              @version 0x0100 */
+    float               rollRel;                    /**< roll angle relative to road tangent plane                     @unit rad                              @version 0x0100 */
+#endif
 } ASIM_OBJECT_STATE_BASE_t;
 
 /** ------ extended object data (e.g. for dynamic objects) ------- */
-typedef struct
+typedef struct ASIM_OBJECT_STATE_EXT
 {
     ASIM_COORD_t         speed;                      /**< speed and rates                                               @unit m/s,m/s,m/s,rad/s,rad/s,rad/s          @version 0x0100 */
     ASIM_COORD_t         accel;                      /**< acceleration                                                  @unit m/s2,m/s2,m/s2,rad/s2,rad/s2/rad/s2    @version 0x0100 */
     float               traveledDist;               /**< traveled distance                                             @unit m                                      @version 0x011a */
+#if 0 // Sue 2021.1.8 roadId字段从uint32_t改为uint64_t
+    uint32_t            spare[3];                   /**< reserved for future use                                       @unit _                                      @version 0x0100 */
+#else
     uint32_t            spare[4];                   /**< reserved for future use                                       @unit _                                      @version 0x0100 */
+#endif
 } ASIM_OBJECT_STATE_EXT_t;
 
 /** ------ complete object data (basic and extended info) ------- */
-typedef struct
+typedef struct ASIM_OBJECT_STATE
 {
     ASIM_OBJECT_STATE_BASE_t base;           /**< state of an object     @unit ASIM_OBJECT_STATE_BASE_t   @version 0x0100 */
     ASIM_OBJECT_STATE_EXT_t  ext;            /**< extended object data   @unit ASIM_OBJECT_STATE_EXT_t    @version 0x0100 */
 } ASIM_OBJECT_STATE_t;
 
 /** ------ standard engine information ------ */
-typedef struct
+typedef struct ASIM_ENGINE_BASE
 {
     uint32_t playerId;                    /**< unique ID of the player                          @unit _                         @version 0x0100 */
     float    rps;                         /**< current rotation speed                           @unit 1/s                       @version 0x0100 */
@@ -1137,7 +1192,7 @@ typedef struct
 } ASIM_ENGINE_BASE_t;
 
 /** ------ extension of standard engine information ------ */
-typedef struct
+typedef struct ASIM_ENGINE_EXT
 {
     float    rpsStart;                    /**< start speed                                      @unit 1/s                       @version 0x0100 */
     float    torque;                      /**< torque                                           @unit Nm                        @version 0x0100 */
@@ -1151,14 +1206,14 @@ typedef struct
 } ASIM_ENGINE_EXT_t;
 
 /** ------ complete engine data (basic and extended info) ------- */
-typedef struct
+typedef struct ASIM_ENGINE
 {
     ASIM_ENGINE_BASE_t base;             /**< standard engine information                @unit ASIM_ENGINE_BASE_t @version 0x0100 */
     ASIM_ENGINE_EXT_t  ext;              /**< extension of standard engine information   @unit ASIM_ENGINE_EXT_t  @version 0x0100 */
 } ASIM_ENGINE_t;
 
 /** ------ standard drivetrain information ------ */
-typedef struct
+typedef struct ASIM_DRIVETRAIN_BASE
 {
     uint32_t playerId;                    /**< unique ID of the player                          @unit _                                     @version 0x0100 */
     uint8_t  gearBoxType;                 /**< type of gear box                                 @unit @link ASIM_GEAR_BOX_TYPE   @endlink    @version 0x0100 */
@@ -1169,7 +1224,7 @@ typedef struct
 } ASIM_DRIVETRAIN_BASE_t;
 
 /** ------ extension of standard drivetrain information ------ */
-typedef struct
+typedef struct ASIM_DRIVETRAIN_EXT
 {
     float    torqueGearBoxIn;             /**< torque at entry of gearbox                       @unit Nm                        @version 0x0100 */
     float    torqueCenterDiffOut;         /**< torque at exit of center differential            @unit Nm                        @version 0x0100 */
@@ -1178,14 +1233,14 @@ typedef struct
 } ASIM_DRIVETRAIN_EXT_t;
 
 /** ------ complete engine data (basic and extended info) ------- */
-typedef struct
+typedef struct ASIM_DRIVETRAIN
 {
     ASIM_DRIVETRAIN_BASE_t base;             /**< standard drivetrain information                @unit ASIM_DRIVETRAIN_BASE_t @version 0x0100 */
     ASIM_DRIVETRAIN_EXT_t  ext;              /**< extension of standard drivetrain information   @unit ASIM_DRIVETRAIN_EXT_t  @version 0x0100 */
 } ASIM_DRIVETRAIN_t;
 
 /** ------ standard wheel information ------ */
-typedef struct
+typedef struct ASIM_WHEEL_BASE
 {
     uint32_t playerId;                    /**< ID of the player to which the wheel belongs      @unit _                             @version 0x0100 */
     uint8_t  id;                          /**< ID of the wheel within the player                @unit @link ASIM_WHEEL_ID @endlink   @version 0x0100 */
@@ -1200,7 +1255,7 @@ typedef struct
 } ASIM_WHEEL_BASE_t;
 
 /** ------ extension of standard wheel information ------ */
-typedef struct
+typedef struct ASIM_WHEEL_EXT
 {
     float    vAngular;                    /**< angular velocity                                 @unit rad/s                     @version 0x0100 */
     float    forceZ;                      /**< wheel contact force                              @unit N                         @version 0x0100 */
@@ -1215,14 +1270,14 @@ typedef struct
 } ASIM_WHEEL_EXT_t;
 
 /** ------ complete wheel data (basic and extended info) ------- */
-typedef struct
+typedef struct ASIM_WHEEL
 {
     ASIM_WHEEL_BASE_t base;              /**< standard wheel information                 @unit ASIM_WHEEL_BASE_t  @version 0x0100 */
     ASIM_WHEEL_EXT_t  ext;               /**< extension of standard wheel information    @unit ASIM_WHEEL_EXT_t   @version 0x0100 */
 } ASIM_WHEEL_t;
 
 /** ------ vehicle system information ------ */
-typedef struct
+typedef struct ASIM_VEHICLE_SYSTEMS
 {
     uint32_t playerId;                /**< ID of the player to which the data belongs                               @unit _                                        @version 0x0100 */
     uint32_t lightMask;               /**< mask of active light systems                                             @unit @link ASIM_VEHICLE_LIGHT @endlink         @version 0x0100 */
@@ -1238,7 +1293,7 @@ typedef struct
 } ASIM_VEHICLE_SYSTEMS_t;
 
 /** ------ vehicle setup information ------ */
-typedef struct
+typedef struct ASIM_VEHICLE_SETUP
 {
     uint32_t playerId;       /**< ID of the player to which the data belongs                                       @unit _                     @version 0x0100 */
     float    mass;           /**< vehicle mass                                                                     @unit kg                    @version 0x0100 */
@@ -1249,7 +1304,7 @@ typedef struct
 /** ------ image information ------
 *   @note to be followed by actual image data
 */
-typedef struct
+typedef struct ASIM_IMAGE
 {
     uint32_t id;                          /**< unique ID of the image (e.g. frame count)                            @unit _                             @version 0x0100 */
     uint16_t width;                       /**< width of the image                                                   @unit pixel                         @version 0x0100 */
@@ -1265,7 +1320,7 @@ typedef struct
 /** ------ custom light source information ------
 *   @note to be followed by actual light source intensity data
 */
-typedef struct
+typedef struct ASIM_CUSTOM_LIGHT_B
 {
     uint16_t lightElementId;              /**< unique ID of the light element                                       @unit _                             @version 0x0119 */
     uint16_t width;                       /**< width of the light element control data                              @unit pixel                         @version 0x0119 */
@@ -1277,7 +1332,7 @@ typedef struct
 
 /** ------ custom light source information for light groups ------
 */
-typedef struct
+typedef struct ASIM_CUSTOM_LIGHT_GROUP_B
 {
     uint16_t lightElementId;              /**< unique ID of the light element                                       @unit _                             @version 0x011D */
     uint16_t groupId;                     /**< unique ID of the group within the light element                      @unit _                             @version 0x011D */
@@ -1291,7 +1346,7 @@ typedef struct
 /** ------ arbitrary x/y function ------
 *   @note to be followed by actual function points (each 2 or 3 doubles)
 */
-typedef struct
+typedef struct ASIM_FUNCTION
 {
     uint32_t id;                          /**< unique ID of the function                                            @unit _                                 @version 0x0100 */
     uint8_t  type;                        /**< type of the function                                                 @unit @link ASIM_FUNCTION_TYPE @endlink  @version 0x0100 */
@@ -1302,7 +1357,7 @@ typedef struct
 } ASIM_FUNCTION_t;
 
 /** ------ sensor definition and state ------ */
-typedef struct
+typedef struct ASIM_SENSOR_STATE
 {
     uint32_t    id;                          /**< id of the sensor                                      @unit _                                     @version 0x0100 */
     uint8_t     type;                        /**< type of the sensor                                    @unit @link ASIM_SENSOR_TYPE     @endlink    @version 0x0100 */
@@ -1319,7 +1374,7 @@ typedef struct
 } ASIM_SENSOR_STATE_t;
 
 /** ------ information about an object registered within a sensor ------ */
-typedef struct
+typedef struct ASIM_SENSOR_OBJECT
 {
     uint8_t     category;     /**< object category                                                                @unit @link ASIM_OBJECT_CATEGORY    @endlink  @version 0x0100 */
     uint8_t     type;         /**< object type                                                                    @unit @link ASIM_OBJECT_TYPE        @endlink  @version 0x0100 */
@@ -1335,7 +1390,7 @@ typedef struct
 } ASIM_SENSOR_OBJECT_t;
 
 /** ------ camera information ------ */
-typedef struct
+typedef struct ASIM_CAMERA
 {
     uint16_t    id;                         /**< unique ID of the camera                                @unit _                        @version 0x0100 */
     uint16_t    width;                      /**< width of viewport                                      @unit pixel                    @version 0x0100 */
@@ -1352,7 +1407,7 @@ typedef struct
 } ASIM_CAMERA_t;
 
 /** ------ basic info about a light illuminating the scene ------ */
-typedef struct
+typedef struct ASIM_LIGHT_SOURCE_BASE
 {
     uint16_t     id;                      /**< unique ID of the light source                                    @unit _                                     @version 0x0100 */
     int8_t       templateId;              /**< template definition of light source (-1 deletes light source)    @unit _                                     @version 0x0100 */
@@ -1365,7 +1420,7 @@ typedef struct
 } ASIM_LIGHT_SOURCE_BASE_t;
 
 /** ------ extended info about a light illuminating the scene ------ */
-typedef struct
+typedef struct ASIM_LIGHT_SOURCE_EXT
 {
     float        nearFar[2];              /**< near and far clip of light soure                                   @unit m,m                          @version 0x0100 */
     float        frustumLRBT[4];          /**< frustum left / right / bottom / top                                @unit m,m,m,m                      @version 0x0100 */
@@ -1375,14 +1430,14 @@ typedef struct
 } ASIM_LIGHT_SOURCE_EXT_t;
 
 /** ------ complete light source data (basic and extended info) ------- */
-typedef struct
+typedef struct ASIM_LIGHT_SOURCE
 {
     ASIM_LIGHT_SOURCE_BASE_t base;       /**< basic info about a light illuminating the scene    @unit ASIM_LIGHT_SOURCE_BASE_t   @version 0x0100 */
     ASIM_LIGHT_SOURCE_EXT_t  ext;        /**< extended info about a light illuminating the scene @unit ASIM_LIGHT_SOURCE_EXT_t    @version 0x0100 */
 } ASIM_LIGHT_SOURCE_t;
 
 /** ------ info about an arbitrary contact point ------ */
-typedef struct
+typedef struct ASIM_CONTACT_POINT
 {
     uint16_t     id;             /**< unique ID of the contact point                                                                @unit _                                           @version 0x0100 */
     uint16_t     flags;          /**< various flags with contact point options                                                      @unit @link ASIM_CONTACT_POINT_FLAG @endlink       @version 0x0102 */
@@ -1393,7 +1448,7 @@ typedef struct
 } ASIM_CONTACT_POINT_t;
 
 /** ------ signal / sign info for a given vehicle ------ */
-typedef struct
+typedef struct ASIM_TRAFFIC_SIGN
 {
     uint32_t     id;              /**< ID of the signal                                                                     @unit _                                           @version 0x0100 */
     uint32_t     playerId;        /**< ID of the player who "detected" the signal                                           @unit _                                           @version 0x0100 */
@@ -1413,13 +1468,17 @@ typedef struct
 } ASIM_TRAFFIC_SIGN_t;
 
 /** ------ road state for a given vehicle ------ */
-typedef struct
+typedef struct ASIM_ROAD_STATE
 {
     uint32_t     playerId;        /**< ID of the player for which the state applies                            @unit _                              @version 0x0100 */
     int8_t       wheelId;         /**< unique ID of the player's wheel for which state is valid (-1 for all)   @unit @link ASIM_WHEEL_ID @endlink    @version 0x0100 */
     uint8_t      spare0;          /**< yet another spare                                                       @unit _                              @version 0x0100 */
     uint16_t     spare1;          /**< yet another spare                                                       @unit _                              @version 0x0100 */
+#if 0 // Xu 2021.1.8 roadId过长导致crash
+    uint32_t     roadId;          /**< unique ID of the road                                                   @unit _                              @version 0x0100 */
+#else
     uint64_t     roadId;          /**< unique ID of the road                                                   @unit _                              @version 0x0100 */
+#endif
     float        defaultSpeed;    /**< default speed of the road                                               @unit m/s                            @version 0x0100 */
     float        waterLevel;      /**< rain level on road                                                      @unit [0.0..1.0]                     @version 0x0100 */
     uint32_t     eventMask;       /**< road events                                                             @unit @link ASIM_ROAD_EVENT @endlink  @version 0x0100 */
@@ -1428,7 +1487,7 @@ typedef struct
 } ASIM_ROAD_STATE_t;
 
 /** ------ information about the environment state ------ */
-typedef struct
+typedef struct ASIM_ENVIRONMENT
 {
     float          visibility;            /**< visibility range                                                        @unit m                                  @version 0x0100 */
     uint32_t       timeOfDay;             /**< time of day at sim start                                                @unit s                                  @version 0x0100 */
@@ -1448,7 +1507,7 @@ typedef struct
 /** ------ pedestrians animation data ------
 * @note this package is followed immediately by "dataSize" bytes of data, containing hinge information etc.
 */
-typedef struct
+typedef struct ASIM_PED_ANIMATION
 {
     uint32_t          playerId;   /**< unique player ID                                                        @unit _                          @version 0x0100 */
     ASIM_COORD_t       pos;        /**< real-world position and orientation of reference point32_t              @unit m,m,m,rad,rad,rad          @version 0x0100 */
@@ -1458,7 +1517,7 @@ typedef struct
 } ASIM_PED_ANIMATION_t;
 
 /** ------ scoring information (for racing applications) ------ */
-typedef struct
+typedef struct ASIM_CUSTOM_SCORING
 {
     uint32_t playerId;         /**< unique player ID                                     @unit _                                    @version 0x0100 */
     float    pathS;            /**< path position (negative if no path is available)     @unit m                                    @version 0x0100 */
@@ -1471,7 +1530,7 @@ typedef struct
 } ASIM_CUSTOM_SCORING_t;
 
 /** ------ simulation frame trigger information ------ */
-typedef struct
+typedef struct ASIM_TRIGGER
 {
     float    deltaT;           /**< delta time by which to advance the simulation        @unit s                                    @version 0x0100 */
     uint32_t frameNo;          /**< number of the simulation frame which is triggered    @unit _                                    @version 0x0100 */
@@ -1480,7 +1539,7 @@ typedef struct
 } ASIM_TRIGGER_t;
 
 /** ------ image generator trigger (live counter) information ------ */
-typedef struct
+typedef struct ASIM_IG_FRAME
 {
     float    deltaT;           /**< delta time provided by IG                            @unit s                                    @version 0x011B */
     uint32_t frameNo;          /**< number of the IG frame which is triggering           @unit _                                    @version 0x011B */
@@ -1488,7 +1547,7 @@ typedef struct
 } ASIM_IG_FRAME_t;
 
 /** ------ information about driver control inputs (may be used e.g. for dynamics input) ------ */
-typedef struct
+typedef struct ASIM_DRIVER_CTRL
 {
     uint32_t playerId;         /**< unique player ID to which the controls apply         @unit _                                        @version 0x0100 */
     float    steeringWheel;    /**< steering wheel angle                                 @unit rad                                      @version 0x0100 */
@@ -1510,11 +1569,16 @@ typedef struct
     uint32_t mockupInput0;     /**< flags resulting from mockup buttons, part 1          @unit @link ASIM_MOCKUP_INPUT0         @endlink @version 0x010A */
     uint32_t mockupInput1;     /**< flags resulting from mockup buttons, part 2          @unit @link ASIM_MOCKUP_INPUT1         @endlink @version 0x010A */
     uint32_t mockupInput2;     /**< flags resulting from mockup buttons, part 3          @unit @link ASIM_MOCKUP_INPUT2         @endlink @version 0x010A */
+#if 0 //Xu 2021.9.8 SIL
     uint32_t spare;            /**< some spare  for future use                           @unit _                                        @version 0x010A */
+#else
+    double MasterCylinderPressure;  /**< 制动主缸压力                                      @unit MPA                                     @version 0x010A */
+#endif
+
 } ASIM_DRIVER_CTRL_t;
 
 /** ------ information about driver control inputs (may be used e.g. for dynamics input) ------ */
-typedef struct
+typedef struct ASIM_DRIVER_PERCEPTION
 {
     uint32_t playerId;         /**< unique player ID to which the controls apply         @unit _                                            @version 0x0100 */
     float    speedFromRules;   /**< speed from rules (i.e. road, signs etc.)             @unit m/s                                          @version 0x0100 */
@@ -1525,7 +1589,7 @@ typedef struct
 } ASIM_DRIVER_PERCEPTION_t;
 
 /** ------ information about a traffic light (state) ------ */
-typedef struct
+typedef struct ASIM_TRAFFIC_LIGHT_BASE
 {
     int32_t                   id;                             /**< unique ID of the traffic light                           @unit _                           @version 0x0100 */
     float                     state;                          /**< current state (normalized)                               @unit [0.0..1.0]                  @version 0x0100 */
@@ -1533,7 +1597,7 @@ typedef struct
 } ASIM_TRAFFIC_LIGHT_BASE_t;
 
 /** ------ traffic light phase information entry ------ */
-typedef struct
+typedef struct ASIM_TRAFFIC_LIGHT_PHASE
 {
     float   duration;                        /**< normalized duration of the phase, invalid phases will have duration 0.0   @unit [0.0..1.0]                         @version 0x0100 */
     uint8_t type;                            /**< type of the phase                                                         @unit @link ASIM_TRLIGHT_PHASE @endlink   @version 0x0100 */
@@ -1542,7 +1606,7 @@ typedef struct
 
 /** ------ extended information about a traffic light (phases, state details) ------
  * @note this package is followed immediately by "dataSize" bytes of data, containing "noPhases" phase information entries ASIM_TRAFFIC_LIGHT_PHASE_t */
-typedef struct
+typedef struct ASIM_TRAFFIC_LIGHT_EXT
 {
     int32_t                   ctrlId;                         /**< ID of the traffic light's controller                     @unit _                           @version 0x0100 */
     float                     cycleTime;                      /**< duration of a complete cycle of all phases               @unit s                           @version 0x0100 */
@@ -1551,14 +1615,14 @@ typedef struct
 } ASIM_TRAFFIC_LIGHT_EXT_t;
 
 /** ------ complete traffic light data (basic and extended info) ------- */
-typedef struct
+typedef struct ASIM_TRAFFIC_LIGHT
 {
     ASIM_TRAFFIC_LIGHT_BASE_t base;          /**< information about a traffic light state    @unit ASIM_TRAFFIC_LIGHT_BASE_t  @version 0x0100 */
     ASIM_TRAFFIC_LIGHT_EXT_t  ext;           /**< extended information about a traffic light @unit ASIM_TRAFFIC_LIGHT_EXT_t   @version 0x0100 */
 } ASIM_TRAFFIC_LIGHT_t;
 
 /** ------ synchronization package ------- */
-typedef struct
+typedef struct ASIM_SYNC
 {
     uint32_t mask;          /**< mask of required sync sources which are fulfilled by this sender            @unit _                        @version 0x0100 */
     uint32_t cmdMask;       /**< mask of commands included in the sync message                               @unit ASIM_SYNC_CMD             @version 0x010E */
@@ -1566,7 +1630,7 @@ typedef struct
 } ASIM_SYNC_t;
 
 /** ------ road query package ------- */
-typedef struct
+typedef struct ASIM_ROAD_QUERY
 {
     uint16_t id;            /**< unique ID of the road query point (reflected in answer)                     @unit _                        @version 0x0107 */
     uint16_t flags;         /**< query flags                                                                 @unit ASIM_ROAD_QUERY_FLAG      @version 0x0107 */
@@ -1577,7 +1641,7 @@ typedef struct
 
 /** ------ wrapper for SCP messages -------
  * @note this package is followed immediately by "dataSize" bytes of data, containing the actual SCP command string */
-typedef struct
+typedef struct ASIM_SCP
 {
     uint16_t  version;                     /**< upper byte = major, lower byte = minor                       @unit _                        @version 0x010C */
     uint16_t  spare;                       /**< just another spare                                           @unit _                        @version 0x010C */
@@ -1588,7 +1652,7 @@ typedef struct
 
 /** ------ wrapper for forwarded messages -------
  * @note this package is followed immediately by "dataSize" bytes of data, containing the actual forwarded message */
-typedef struct
+typedef struct ASIM_PROXY
 {
     uint16_t  protocol;                    /**< protocol identifier of the wrapped package                   @unit _                        @version 0x0112 */
     uint16_t  pkgId;                       /**< unique pkg id                                                @unit _                        @version 0x0112 */
@@ -1599,7 +1663,7 @@ typedef struct
 /** ------ trajectory planning points of a player -------
  * @note this package is immediately followed by "noDataPoints" entries of type ASIM_POINT_t
 */
-typedef struct
+typedef struct ASIM_TRAJECTORY
 {
     uint32_t  playerId;                    /**< unique player / object ID                                    @unit _                                       @version 0x0110 */
     double    spacing;                     /**< spacing of data points, either in space or time domain       @unit m, s                                    @version 0x0110 */
@@ -1609,7 +1673,7 @@ typedef struct
 } ASIM_TRAJECTORY_t;
 
 /** ------ state of the motion system ------- */
-typedef struct
+typedef struct ASIM_MOTION_SYSTEM
 {
     uint32_t            playerId;                   /**< unique player / object ID to which the information applies    @unit _                                      @version 0x0116 */
     uint32_t            flags;                      /**< flags for state monitoring etc.                               @unit @link ASIM_MOTION_SYSTEM_FLAG  @endlink @version 0x0116 */
@@ -1621,7 +1685,7 @@ typedef struct
 } ASIM_MOTION_SYSTEM_t;
 
 /** ------ state of a symbol ------- */
-typedef struct
+typedef struct ASIM_SYMBOL_STATE
 {
     uint32_t            id;                         /**< unique numeric id of the controlled symbol                    @unit _                                      @version 0x011F */
     ASIM_COORD_t         pos;                        /**< position and orientation of the symbol                        @unit m,m,m,rad,rad,rad                      @version 0x011F */
@@ -1630,7 +1694,7 @@ typedef struct
 } ASIM_SYMBOL_STATE_t;
 
 /** ------ custom object control package ------ */
-typedef struct
+typedef struct ASIM_CUSTOM_OBJECT_CTRL_TRACK
 {
     uint32_t playerId;              /**< unique player ID                                                             @unit _                                                        @version 0x0119 */
     uint16_t flags;                 /**< configuraton flags                                                           @unit @link ASIM_CUSTOM_TRACK_CTRL_FLAG  @endlink               @version 0x0119 */
@@ -1650,7 +1714,7 @@ typedef struct
 } ASIM_CUSTOM_OBJECT_CTRL_TRACK_t;
 
 /** ------ freespace description package ------ */
-typedef struct
+typedef struct ASIM_FREESPACE
 {
     uint32_t playerId;             /**< unique player ID                                                             @unit _                                                        @version 0x011A */
     float    distance;             /**< distance to closest object                                                   @unit m                                                        @version 0x011A */
@@ -1666,7 +1730,7 @@ typedef struct
 } ASIM_FREESPACE_t;
 
 /** ------ generit switch description package ------ */
-typedef struct
+typedef struct ASIM_DYN_EL_SWITCH
 {
     uint32_t objectId;              /**< ID of the object which contains the switch                          @unit _                                @version 0x011B */
     uint32_t elementId;             /**< ID of the switch itself                                             @unit _                                @version 0x011B */
@@ -1679,7 +1743,7 @@ typedef struct
 /** ------ generic DOF description package ------
  * @note this package is immediately followed by "nValues" entries of type double
 */
-typedef struct
+typedef struct ASIM_DYN_EL_DOF
 {
     uint32_t objectId;              /**< ID of the object which contains the switch                          @unit _                                                @version 0x011B */
     uint32_t elementId;             /**< ID of the switch itself                                             @unit _                                                @version 0x011B */
@@ -1692,18 +1756,18 @@ typedef struct
 
 #ifndef MATLAB_MEX_FILE
 /** ------ empty structure for end-of-frame message (not to be used) -------  */
-typedef struct
+typedef struct ASIM_END_OF_FRAME
 {
 } ASIM_END_OF_FRAME_t;
 
 /** ------ empty structure for start-of-frame message (not to be used) -------  */
-typedef struct
+typedef struct ASIM_START_OF_FRAME
 {
 } ASIM_START_OF_FRAME_t;
 #endif
 
 /** ------ structure for SHM interface from steering wheel control to dynamics -------  */
-typedef struct
+typedef struct ASIM_STEER_2_DYN
 {
     uint32_t  playerId;     /**< unique player / object ID                           @unit _                                      @version 0x0111 */
     uint32_t  state;        /**< steering wheel state flags                          @unit @link ASIM_STEER_2_DYN_STATE @endlink   @version 0x0111 */
@@ -1714,7 +1778,7 @@ typedef struct
 } ASIM_STEER_2_DYN_t;
 
 /** ------ structure for SHM interface from dynamics to steering wheel control -------  */
-typedef struct
+typedef struct ASIM_DYN_2_STEER
 {
     uint32_t  playerId;         /**< unique player / object ID                            @unit _                                         @version 0x0111 */
     uint16_t  state;            /**< dynamics state.                                      @unit @link ASIM_DYN_2_STEER_STATE   @endlink    @version 0x0111 */
@@ -1732,7 +1796,7 @@ typedef struct
 } ASIM_DYN_2_STEER_t;
 
 /** ------ structure for ray casting -------  */
-typedef struct
+typedef struct ASIM_RAY
 {
     uint32_t    id;               /**< unique ray ID                                        @unit _                                         @version 0x011C */
     uint32_t    emitterId;        /**< unique ID of the ray's emitter                       @unit _                                         @version 0x011C */
@@ -1745,7 +1809,7 @@ typedef struct
 } ASIM_RAY_t;
 
 /** ------ structure for performance monitoring -------  */
-typedef struct
+typedef struct ASIM_RT_PERFORMANCE
 {
     uint32_t    noOverruns;       /**< number of real-time overruns                         @unit _                                         @version 0x011D */
     uint32_t    noUnderruns;      /**< number of real-time underruns                        @unit _                                         @version 0x011D */
@@ -1757,7 +1821,7 @@ typedef struct
 } ASIM_RT_PERFORMANCE_t;
 
 /** ------ custom look-ahead package ------ */
-typedef struct
+typedef struct ASIM_CUSTOM_LOOK_AHEAD
 {
     uint32_t playerId;              /**< unique player ID                                                             @unit _                                                        @version 0x011E */
     float    distance;              /**< distance for which the look ahead is valid                                   @unit m or s                                                   @version 0x011E */
@@ -1771,7 +1835,7 @@ typedef struct
 } ASIM_CUSTOM_LOOK_AHEAD_t;
 
 /** ------ header of a complete message ------ */
-typedef struct
+typedef struct ASIM_MSG_HDR
 {
     uint16_t  magicNo;      /**< must be ASIM_MAGIC_NO (35712)                                               @unit @link GENERAL_DEFINITIONS @endlink   @version 0x0100 */
     uint16_t  version;      /**< upper byte = major, lower byte = minor                                     @unit _                                    @version 0x0100 */
@@ -1782,7 +1846,7 @@ typedef struct
 } ASIM_MSG_HDR_t;
 
 /** ------ header of a package vector within a message ------ */
-typedef struct
+typedef struct ASIM_MSG_ENTRY_HDR
 {
     uint32_t  headerSize;   /**< size of this header structure when transmitted                              @unit byte                     @version 0x0100 */
     uint32_t  dataSize;     /**< size of data following the header                                           @unit byte                     @version 0x0100 */
@@ -1795,7 +1859,7 @@ typedef struct
 
 
 /** ------ the message union (use for very simplistic casting only)------ */
-typedef union
+typedef union ASIM_MSG_UNION
 {
     ASIM_COORD_SYSTEM_t              coordSystem;                   /**< (custom) co-ordinate system                                         @msgid ASIM_PKG_ID_COORD_SYSTEM              */
     ASIM_COORD_t                     coord;                         /**< single co-ordinate extending previous object information            @msgid ASIM_PKG_ID_COORD                     */
@@ -1834,7 +1898,7 @@ typedef union
 } ASIM_MSG_UNION_t;
 
 
-typedef struct
+typedef struct ASIM_MSG
 {
     ASIM_MSG_HDR_t       hdr;            /**< header of a complete message                   @unit ASIM_MSG_HDR_t         @version 0x0100 */
     ASIM_MSG_ENTRY_HDR_t entryHdr;       /**< header of a package vector within a message    @unit ASIM_MSG_ENTRY_HDR_t   @version 0x0100 */
@@ -1842,7 +1906,7 @@ typedef struct
 } ASIM_MSG_t;
 
 /** ------ shared memory segment header, located of beginning of shared memory segment ------ */
-typedef struct
+typedef struct ASIM_SHM_BUFFER_INFO
 {
     uint32_t  thisSize;   /**< size of this info structure                               @unit byte                                 @version 0x0100 */
     uint32_t  bufferSize; /**< size of the associated buffer                             @unit byte                                 @version 0x0100 */
@@ -1856,7 +1920,7 @@ typedef struct
 /** ------ shared memory management header, located of beginning of shared memory ------
 * @note this entry is followed immediately by "noBuffers" bytes of type ASIM_SHM_BUFFER_INFO_t, containing "noBuffers" buffer information entries
 */
-typedef struct
+typedef struct ASIM_SHM_HDR
 {
     uint32_t  headerSize;     /**< size of this header structure                               @unit byte                     @version 0x0100 */
     uint32_t  dataSize;       /**< size of data following this header                          @unit byte                     @version 0x0100 */
@@ -1864,22 +1928,120 @@ typedef struct
 } ASIM_SHM_HDR_t;
 
 
+#if 1 // Xu 2021.7.29 MIL测试新增
+typedef struct MIL_EGO_STATE
+{
+    uint8_t                         standstill_St;              /**静止状态	                  @unit _ */
+    uint8_t                         handSteeringTorqueSign;     /**手力矩信号	               @unit _ */
+    uint8_t                         overlayInputTorqueSign;     /**叠加力矩信号	               @unit _ */
+    uint8_t                         intervention_ABS;           /**ABS干预	                  @unit _ */
+    uint8_t                         steeringWheelAngleSign;     /**方向盘转角信号	            @unit _ */
+    uint8_t                         steeringWheelSpeedSign;     /**方向盘转角速度信号	         @unit _ */
+    uint8_t	                        objQuantity;	    /**目标的总数	                  @unit _ */
+    uint8_t	                        irc_id;	            /**主车同车道后方车辆id	            @unit _ */
+    uint8_t	                        irc_left_id;	    /**主车同车道左后方车辆id	        @unit _ */
+    uint8_t	                        irc_right_id;	    /**主车同车道右后方车辆id	        @unit _ */
+    uint8_t                         cipv_id;            /**主车前方横向距离小于2m的车辆中纵向距离最近的车辆id   @unit _ */
+    uint8_t                         lmc_id;             /**主车左侧车辆id                  @unit _ */
+    uint8_t                         rmc_id;             /**主车右侧车辆id                  @unit _ */
+    uint8_t                         isReachInitSpeed;   /**主车是否到达初始速度*/
+    float                           wheelSpeed_FL;              /**左前轮转速	                @unit _rad/s */
+    float                           wheelSpeed_FR;              /**右前轮转速	                @unit _rad/s */
+    float                           wheelSpeed_RL;              /**左后轮转速	                @unit _rad/s */
+    float                           wheelSpeed_RR;              /**右后轮转速	                @unit _rad/s */
+    float                           pos_AccPedal;               /**加速踏板位置	                @unit _0~1 */
+    float                           pos_BrakePedal;             /**制动踏板位置	                @unit _0~1 */
+    float                           engineSpeed;                /**发动机转速	                @unit _r/min */
+    float                           combustionTorque;           /**发动机扭矩	                @unit _nm */
+    float                           handSteeringTorque;         /**手力矩	                   @unit _nm */
+    float                           overlayInputTorque;         /**叠加力矩	                   @unit _nm */
+    float                           steeringWheelAngle;         /**方向盘转角	               @unit _degree */
+    float                           steeringWheelSpeed;         /**方向盘转角速度               @unit _degree/s */
+    float                           masterCylinderPressure;     /**主缸压力	                   @unit _MPA */
+    double                          initSpeed;          /**主车的初始速度                  @unit m/s*/
+    uint32_t                        lightMask;          /**< mask of active light systems     @unit @link ASIM_VEHICLE_LIGHT @endlink */
+    ASIM_OBJECT_STATE_BASE_t	    base;	            /**对象的状态	                  @link ASIM_OBJECT_STATE_BASE_t */
+    ASIM_OBJECT_STATE_EXT_t	        ext;	            /**对象的扩展信息	               @link ASIM_OBJECT_STATE_EXT_t */
+} MIL_EGO_STATE_t;
+
+
+typedef struct MIL_OBJECT_STATE_BASE
+{
+    uint8_t	    objClass;      	    /**类型    	                @unit _   */
+    uint8_t	    movable;    	    /**是否可移动  	             @unit _   */
+    uint8_t	    moving;     	    /**是否在移动              	 @unit _   */
+    uint8_t     flag_detected; 	    /**在主车前面赋值11，在主车后面赋值为16	   @unit _   */
+    uint8_t     obj_Age;    	    /**目标被检测到的帧数累加	   @unit _   */
+    uint8_t	    id_camera;  	    /**匹配的摄像头目标的ID       @unit _   */
+    uint8_t	    id_radar;   	    /**匹配的雷达目标的ID	      @unit _   */
+    uint8_t     spare;
+    float	    distance_X;      	/**与主车的纵向距离	          @unit m   */
+    float	    distance_Y;      	/**与主车的横向距离	          @unit m   */
+    float	    velocity_x;     	/**与主车的纵向相对速度	       @unit m/s */
+    float	    velocity_y; 	    /**与主车的横向相对速度	       @unit m/s */
+    float	    acceleration_x;	    /**与主车的纵向相对加速度	   @unit m/s2*/
+    float	    boxSize_x;	        /**box长	                @unit m   */
+    float	    boxSize_y;      	/**box宽	                @unit m   */
+    float	    boxSize_z;      	/**box高	                @unit m   */
+    float	    boxAngle;	        /**与主车的航向角之差          @unit rad */
+    float	    yawRate;	        /**目标航向角速度             @unit rad/s */
+    float       dist;               /**与主车距离                @unit m */
+    float       velocity;           /**与主车的相对速度           @unit m/s */
+    float       acceleration;     /**与主车的相对加速度          @unit m/s2 */
+    float       angle;              /**                         @unit */
+} MIL_OBJECT_STATE_BASE_T;
+
+
+typedef struct MIL_OBJECT_STATE
+{
+    ASIM_OBJECT_STATE_BASE_t	base;	            /**对象的状态	                    @link ASIM_OBJECT_STATE_BASE_t */
+    ASIM_OBJECT_STATE_EXT_t	    ext;	            /**对象的扩展信息	                 @link ASIM_OBJECT_STATE_EXT_t */
+    MIL_OBJECT_STATE_BASE_T	    milBase;	        /**MIL测试所需环境车状态信息	      @link MIL_OBJECT_STATE_BASE_T   */
+} MIL_OBJECT_STATE_t;
 
 
 
+typedef struct MIL_ROADMARK
+{
+    int8_t	    laneId;	            /**车道id                                           @unit _ */
+    uint8_t	    quality;	        /**车道线质量                                        @unit _ */
+    uint8_t	    type;           	/**车道线类型                                        @link MIL_ROADMARK_TYPE */
+    uint8_t	    color;          	/**车道线颜色                                        @link MIL_ROADMARK_COLOR */
+    uint8_t	    left_crossing;  	/**在本车跨道线换道过程中，当左轮相距左侧道线0.7m,置位1    @unit _ */
+    uint8_t	    right_crossing; 	/**在本车跨道线换道过程中，当右轮相距右侧道线0.7m,置位1    @unit _ */
+    uint16_t	lane_change;        /**                                        		   @unit _ */
+    float	    viewRangeStart; 	/**探测范围内车道线起始距离                            @unit m */
+    float	    viewRangeEnd;   	/**探测范围内车道线结束距离                            @unit m */
+    float	    measuredVR_end; 	/**探测范围内车道线结束距离                            @unit m */
+    float	    C0;             	/**车道线方程常数项                                   @unit _ */
+    float	    C1;             	/**车道线方程一次项系数                               @unit _  */
+    float	    C2;             	/**车道线方程二次项系数                               @unit _  */
+    float	    C3;             	/**车道线方程三次项系数                               @unit _  */
+} MIL_ROADMARK_T;
 
 
+/** @addtogroup MIL_ROADMARK_TYPE
+ *  ------ road marks types ------
+ *  @{
+ */
+#define UNDECIDED          0      /**< 未定义 */
+#define SOLID              1      /**< 实线   */
+#define DASHED             2      /**< 虚线   */
+#define DLM                3      /**<       */
+#define BOTTS              4      /**<       */
+#define DECELERATION       5      /**< 减速带 */
+#define HOV_LANE           6      /**<       */
+/** @} */
 
-
-
-
-
-
-
-
-
-
-
-
+/** @addtogroup MIL_ROADMARK_COLOR
+ *  ------ road marks color ------
+ *  @{
+ */
+#define UNDECIDED          0      /**< 未定义 */
+#define MIL_WHITE              1      /**< 白色   */
+#define MIL_YELLOW             2      /**< 黄色   */
+#define MIL_BLUE               3      /**< 蓝色   */
+/** @} */
+#endif
 
 #endif //ASIM_COMMUNICATION_ASIMTYPE_H

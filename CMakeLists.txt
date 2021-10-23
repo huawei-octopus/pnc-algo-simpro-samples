@@ -3,6 +3,6 @@ project(ADdemo)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(ADdemo main.cpp)
+add_executable(acc_demo main.cpp)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
